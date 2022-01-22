@@ -17,9 +17,9 @@ Frontend :
 This does not classify files directly but all filtering actions are put into a temporary stack which can be reviewed quickly on the right panel of the frontend, when happy with the stack content the stack can be commited so images will be moved to their respective target directory (so you can quickly check that all is good before moving files), here are the defined actions :
 
 * up arrow key : put image in the stack and mark it as `keep`
-* down arrow key : put image in the stack and mark it as `discard`
+* down arrow key : put image in the stack and mark it as `discard` (note : no images are deleted upon commit, it just move it to a `discard` directory)
 * left arrow key : go back to a previous stack state (basically undo operation, will unmark last processed image)
-* right arrow key : clear the stack; go into the state of the latest commit
+* right arrow key : clear the stack; go into the state of the latest commit but don't move any files, this also rescan `images` directory
 * space bar : commit; this will move all files of the stack into their respective directory (note : you can't go back after)
 
 The stack on the right panel can be re-checked by hovering on thumbnails and clicking on it allow to apply different target, the thumbnail border color show the target (by default : green / keep and grey / discard)
