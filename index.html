@@ -1,0 +1,364 @@
+<html>
+    <head>
+        <style>
+            body {
+                background-color: black;
+                margin: 0;
+                overflow: hidden;
+                font-family: monospace;
+            }
+
+            .image {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                flex-direction: column;
+                height: 100%;
+                width: 70%;
+                float: left;
+                color: white;
+            }
+
+            span {
+                padding-top: 8px;
+                color: darkgrey;
+            }
+
+            .stack {
+                float: right;
+                width: 30%;
+                display: flex;
+                height: 100%;
+                flex-wrap: wrap;
+                align-content: start;
+                overflow: auto;
+            }
+
+            .stack img {
+                height: 8%;
+            }
+
+            .stack img:hover {
+                border-bottom: solid 1px white !important;
+            }
+
+            /*
+             * Put the style you want on the stack viewer images for all your targets here
+             */
+            .keep {
+                border-bottom: solid 3px green;
+                color: green;
+            }
+            .discard {
+                border-bottom: dashed 3px darkgrey;
+                color: darkgrey;
+            }
+            /**/
+
+            .rotate90 {
+                transform: rotate(90deg);
+            }
+
+            .rotate180 {
+                transform: rotate(180deg);
+            }
+
+            .header {
+                position: absolute;
+                text-align: center;
+                color: white;
+                padding: 8px;
+                width: 70%;
+            }
+
+            .error {
+                position: absolute;
+                text-align: center;
+                color: red;
+                width: 100%;
+                padding: 8px;
+                bottom: 0;
+            }
+        </style>
+
+        <script type="text/javascript">
+            let busy = false
+            /**
+             * send API query depending on user interactions
+             **/
+            const action = (type) => {
+                busy = true
+
+                const xhr = new XMLHttpRequest()
+                xhr.open('GET', '/' + type)
+
+                xhr.onload = () => {
+                    if (xhr.status === 200) {
+                        document.location.reload()
+                    } else {
+                        busy = false
+                    }
+                }
+
+                xhr.onerror = (err) => {
+                    const error_div = document.getElementById('error')
+
+                    error_div.innerHTML = 'error (see dev. console)'
+
+                    console.log(err)
+
+                    busy = false
+                }
+
+                xhr.ontimeout = (err) => {
+                    const error_div = document.getElementById('error')
+
+                    error_div.innerHTML = 'timeout'
+
+                    busy = false
+                }
+
+                xhr.onabort = (err) => {
+                    const error_div = document.getElementById('error')
+
+                    error_div.innerHTML = 'aborted'
+
+                    busy = false
+                }
+
+                xhr.send()
+            }
+
+            /**
+             * scale images to its container (only if it overflow container)
+             * will scale either vertically or horizontally depending on the widest image axis
+             **/
+            const scaleImageElementToContainer = (image_element, container_element, rotation) => {
+                image_element.style.width = ''
+                image_element.style.height = ''
+
+                const image_dimensions  = image_element.getBoundingClientRect()
+                const container_dimensions  = container_element.getBoundingClientRect()
+
+                if (rotation === 180) {
+                    const right = image_dimensions.right
+                    image_dimensions.right = image_dimensions.left;
+                    image_dimensions.left = right;
+                }
+
+                const imageWidth = image_dimensions.right - image_dimensions.left
+                const imageHeight = image_dimensions.bottom - image_dimensions.top
+                const containerWidth = container_dimensions.right - container_dimensions.left
+                const containerHeight = container_dimensions.bottom - container_dimensions.top
+
+                if (imageWidth > containerWidth && imageHeight > containerHeight) {
+                    if (imageWidth > imageHeight) {
+                        image_element.style.width = '99%'
+                        image_element.style.height = ''
+                    } else {
+                        image_element.style.width = ''
+                        image_element.style.height = '99%'
+                    }
+                } else if (imageWidth > containerWidth) {
+                    image_element.style.width = '99%'
+                    image_element.style.height = ''
+                } else if (imageHeight > containerHeight) {
+                    image_element.style.width = ''
+                    image_element.style.height = '99%'
+                    
+                }
+            }
+
+            /**
+             * retrieve image infos from the API (filename, remaining files to filter)
+             * called on image load
+             **/
+            const getInfos = () => {
+                const xhr_infos = new XMLHttpRequest()
+                xhr_infos.responseType = 'json'
+                xhr_infos.open('GET', '/infos')
+                xhr_infos.onload  = () => {
+                    const response = xhr_infos.response
+
+                    const infos_span = document.getElementById('infos')
+                    infos_span.innerText = ' (' + response.remaining + ')'
+
+                    if (response.current_file) {
+                        const file_span = document.getElementById('main_image_infos')
+                        file_span.innerText = response.current_file
+                    }
+                }
+                xhr_infos.send(null)
+
+                scaleImageElementToContainer(document.getElementById('main_image'), document.getElementById('main_container'))
+            }
+
+            window.addEventListener('DOMContentLoaded', (e) => {
+                // add your targets here
+                const targets = ['keep', 'discard']
+                // and associated keyboard code here
+                const shortcuts = ['ArrowUp', 'ArrowDown']
+
+                // setup help tooltip
+                const helpElement = document.getElementById('help')
+                let helpTitle = 'ACTIONS\n ArrowLeft: undo\n ArrowRight: reset\n Space: commit\n\nTARGETS\n'
+                shortcuts.forEach((code, index) => {
+                    helpTitle += ' ' + code + ': ' + targets[index] + '\n'
+                })
+                helpTitle.slice(0, -2)
+                helpElement.title = helpTitle
+
+                // keyboard events
+                window.addEventListener('keydown', (ev) => {
+                    if (busy) {
+                        return
+                    }
+
+                    // check target keyboard shortcuts
+                    targets.forEach((target, index) => {
+                        if (ev.code == shortcuts[index]) {
+                            action(target)
+                        }
+                    })
+
+                    if (ev.code == 'ArrowLeft') { // undo (left arrow key)
+                        action('undo')
+                    } else if (ev.code == 'ArrowRight') { // reset (right arrow key)
+                        action('reset')
+                    } else if (ev.code == 'Space') { // commit (space bar)
+                        action('commit')
+                    }
+                })
+
+                const main_image_element = document.getElementById("main_image")
+
+                // apply image rescale on window resize
+                window.addEventListener('resize', () => {
+                    scaleImageElementToContainer(main_image_element, document.getElementById('main_container'))
+                })
+
+                // stack viewer (images processed so far)
+                const xhr = new XMLHttpRequest()
+                xhr.responseType = 'json'
+                xhr.open('GET', '/stack')
+                xhr.onload  = () => {
+                    const response = xhr.response
+
+                    if (response.stack) {
+                        response.stack.forEach((obj, index) => {
+                            const stack_div = document.getElementById('stack')
+                            const img_element = document.createElement('img')
+                            img_element.src = "images/" + obj.file
+
+                            // add a class named after the target (so it can be styled as you want)
+                            img_element.classList.add(obj.target)
+
+                            // handle large preview of the stack image by hovering it
+                            const main_container_element = document.getElementById("main_container")
+                            const preview_container_element = document.getElementById("preview_container")
+                            const preview_image_element = document.getElementById("preview_image")
+
+                            // change stack image target when clicking on it
+                            img_element.addEventListener('click', (ev) => {
+                                if (busy) {
+                                    return
+                                }
+
+                                busy = true
+
+                                const targetIndex = targets.findIndex((t) => {
+                                    return t === obj.target
+                                })
+                                const xhrPut = new XMLHttpRequest()
+                                xhrPut.open('PUT', `/stack?index=${index}&target=${targets[(targetIndex + 1) % targets.length]}`)
+                                xhrPut.onload  = () => {
+                                    if (xhr.status === 200) {
+                                        localStorage.setItem('increase', 'false')
+                                        document.location.reload()
+                                    }
+
+                                    busy = false
+                                }
+                                xhrPut.send(null)
+                            })
+                            
+                            // hover on stack preview
+                            img_element.addEventListener('mouseenter', (ev) => {
+                                main_container_element.style.display = 'none'
+                                preview_container_element.style.display = ''
+                                preview_image_element.src = ev.target.src
+
+                                const preview_file_span = document.getElementById('preview_image_infos')
+                                preview_file_span.className = ev.target.className
+                                preview_file_span.innerText = obj.file
+
+                                preview_image_element.onload = () => {
+                                    scaleImageElementToContainer(preview_image_element, preview_container_element)
+                                }
+                            })
+
+                            img_element.addEventListener('mouseleave', () => {
+                                main_container_element.style.display = ''
+                                preview_container_element.style.display = 'none'
+                            })
+                            //
+
+                            stack_div.appendChild(img_element)
+                        })
+                    }
+                }
+                xhr.send(null)
+
+                // load main image
+                const increase = localStorage.getItem('increase')
+                if (increase === 'false') {
+                    // when state shouldn't be changed upon page reload
+                    main_image_element.src = '/image?increase=false'
+                    localStorage.setItem('increase', 'true')
+                } else {
+                    main_image_element.src = '/image'
+                }
+
+                // rotate
+                main_image_element.addEventListener('click', () => {
+                    if (main_image_element.classList.contains('rotate90')) {
+                        main_image_element.classList.toggle('rotate90')
+                        main_image_element.classList.toggle('rotate180')
+                    } else if (main_image_element.classList.contains('rotate180')) {
+                        main_image_element.classList.toggle('rotate180')
+                    } else {
+                        main_image_element.classList.toggle('rotate90')
+                    }
+
+                    let rotation = null
+                    if (main_image_element.classList.contains('rotate90')) {
+                        rotation = 90
+                    } else if (main_image_element.classList.contains('rotate180')) {
+                        rotation = 180
+                    }
+                    scaleImageElementToContainer(main_image_element, document.getElementById('main_container'), rotation)
+                })
+            })
+        </script>
+    </head>
+    <body>
+        <div id="error" class="error">
+            
+        </div>
+        <div id="header" class="header">
+            Images classifier <span id="infos"></span>
+            <span id="help" style="color: yellowgreen">(help)</span>
+        </div>
+        <div id="main_container" class="image">
+            <img id="main_image" src="" onload="getInfos()"/>
+            <span id="main_image_infos"></span>
+        </div>
+        <div id="preview_container" class="image" style="display: none;">
+            <img id="preview_image"/>
+            <span id="preview_image_infos"></span>
+        </div>
+        <div id="stack" class='stack'>
+            <!-- stack viewer -->
+        </div>
+    </body>
+</html>
