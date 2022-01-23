@@ -7,7 +7,7 @@ This was used to classify (keep / discard) randomized output of [generative art]
 This allow to filter images from a source directory to some target directories manually through keyboard. This also allow to review the images through a web frontend before moving them.
 It support multiple targets directories with configurable keyboard shortcuts, it is binary by default with two targets: `keep` and `discard`
 
-The frontend 'index.html' allow to move files fast using keyboard shortcuts, review filtered images by clicking on their preview in the stack viewer and go back into some previous state whenever necessary.
+The frontend 'index.html' allow to move files fast using keyboard shortcuts, review filtered images by hovering on their preview in the stack viewer and go back into some previous state whenever necessary.
 The frontend also allow to rotate the image by 90°/180° by clicking on it. (note : this doesn't save the change)
 
 This use page refresh heavily on the frontend side, it is lightweight, fairly fast and simple to hack : any keyboard actions will refresh the page. (all input events are associated to an API route)
